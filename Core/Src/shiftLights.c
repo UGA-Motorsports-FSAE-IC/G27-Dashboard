@@ -1,0 +1,207 @@
+/*
+ * shiftLights.c
+ *
+ *  Created on: Mar 29, 2025
+ *      Author: Ryan Main
+ */
+
+#include "shiftLights.h"
+
+volatile int datasentflag;
+extern TIM_HandleTypeDef htim2;
+
+
+
+void setColor(TIM_HandleTypeDef *htim, uint32_t Channel, uint8_t green, uint8_t red,
+		uint8_t blue, uint8_t *ledcolors, uint32_t *ledbytes, int ledIndex) {
+
+	int index = (ledIndex * 3);
+	ledcolors[index] = green;
+    ledcolors[index + 1] = red;
+    ledcolors[index + 2] = blue;
+
+    for (int i = index; i < (index + 3); i++) {
+    	for (int j = 0; j < 8; j++) {
+    		if ((ledcolors[i] << j) & 128) {
+    			ledbytes[(i * 8) + j] = 131;
+    		} else {
+   				ledbytes[(i * 8) + j] = 64;
+    		}
+    	}
+    }
+
+    for (int i = PWM_BUFFER_SIZE; i < (PWM_BUFFER_SIZE + 150); i++) {
+    	ledbytes[i] = 0;
+    }
+
+    HAL_TIM_PWM_Start_DMA(htim, Channel, (uint32_t *)ledbytes, PWM_BUFFER_SIZE + 150);
+
+    while (!datasentflag) {}
+
+    datasentflag = 0;
+}
+
+void setColorAll(TIM_HandleTypeDef *htim, uint32_t Channel, uint8_t green, uint8_t red,
+		uint8_t blue, uint8_t *ledcolors, uint32_t *ledbytes) {
+
+	for (int i = 0; i < 48; i += 3) {
+		ledcolors[i] = green;
+		ledcolors[i + 1] = red;
+		ledcolors[i + 2] = blue;
+	}
+
+	for (int i = 0; i < 48; i++) {
+		for (int j = 0; j < 8; j++) {
+
+			if ((ledcolors[i] << j) & 128) {
+				ledbytes[(i * 8) + j] = 131;
+			} else {
+				ledbytes[(i * 8) + j] = 64;
+			}
+		}
+	}
+
+	for (int i = PWM_BUFFER_SIZE; i < (PWM_BUFFER_SIZE + 150); i++) {
+		ledbytes[i] = 0;
+	}
+
+	HAL_TIM_PWM_Start_DMA(htim, Channel, (uint32_t *)ledbytes, PWM_BUFFER_SIZE + 150);
+
+	while (!datasentflag) {}
+
+	datasentflag = 0;
+}
+
+void shiftLightsInit(TIM_HandleTypeDef *htim, uint32_t Channel,
+		uint8_t *ledcolors, uint32_t *ledbytes) {
+
+	for (int i = 0; i < 48; i += 3) {
+		ledcolors[i] = 0;
+		ledcolors[i + 1] = 0;
+		ledcolors[i + 2] = 255;
+	}
+
+	for (int i = 0; i < 48; i++) {
+		for (int j = 0; j < 8; j++) {
+
+			if ((ledcolors[i] << j) & 128) {
+				ledbytes[(i * 8) + j] = 131;
+			} else {
+				ledbytes[(i * 8) + j] = 64;
+			}
+		}
+	}
+
+	for (int i = PWM_BUFFER_SIZE; i < (PWM_BUFFER_SIZE + 150); i++) {
+		ledbytes[i] = 0;
+	}
+
+	HAL_TIM_PWM_Start_DMA(htim, Channel, (uint32_t *)ledbytes, PWM_BUFFER_SIZE + 150);
+
+	while (!datasentflag) {}
+
+	datasentflag = 0;
+}
+
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
+
+	HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_1);
+
+	datasentflag = 1;
+}
+
+
+void UpdateShiftLights(TIM_HandleTypeDef *htim, uint32_t Channel, uint8_t *ledcolors, uint32_t *ledbytes, int current_rpm, int * RPM_thresholds) {
+
+	if (current_rpm > 13000) {
+
+		setColorAll(&htim2, TIM_CHANNEL_1, 0, 0, 255, ledcolors, ledbytes);
+
+	} else {
+
+		for (int i = 2; i < 14; i++) {
+
+			if (current_rpm >= RPM_thresholds[i - 2]) {
+
+				lightOn(htim, Channel, ledcolors, ledbytes, i);
+
+			} else {
+
+				setColor(htim, Channel,
+						0, 0, 0,
+						ledcolors, ledbytes, i);
+			}
+		}
+	}
+}
+
+void lightOn(TIM_HandleTypeDef *htim, uint32_t Channel,
+		uint8_t *ledcolors, uint32_t *ledbytes, int index) {
+
+	if (index == 13) {
+
+		shiftLightsInit(htim, Channel, ledcolors, ledbytes);
+
+		setColor(htim, Channel, 0, 0, 0, ledcolors, ledbytes, 0);
+		setColor(htim, Channel, 0, 0, 0, ledcolors, ledbytes, 1);
+		setColor(htim, Channel, 0, 0, 0, ledcolors, ledbytes, 14);
+		setColor(htim, Channel, 0, 0, 0, ledcolors, ledbytes, 15);
+	}
+
+	if (index < 6) {
+
+		setColor(htim, Channel,
+				150, 0, 0,
+				ledcolors, ledbytes, index);
+
+	} else if (index < 10) {
+
+		setColor(htim, Channel,
+				0, 150, 0,
+				ledcolors, ledbytes, index);
+
+	} else if (index < 14){
+
+		setColor(htim, Channel,
+				0, 0, 150,
+				ledcolors, ledbytes, index);
+	}
+}
+
+void startUp(TIM_HandleTypeDef *htim, uint32_t Channel,
+		uint8_t *ledcolors, uint32_t *ledbytes) {
+
+	int middle = 7;
+
+	for (int i = 0; i < 6; i++) {
+
+		setColor(htim, Channel,
+				0, 150, 0,
+				ledcolors, ledbytes,
+				middle - i);
+
+		setColor(htim, Channel,
+				0, 150, 0,
+				ledcolors, ledbytes,
+				middle + i + 1);
+
+		HAL_Delay(40);
+	}
+
+	for (int i = 0; i < 6; i++) {
+
+		setColor(htim, Channel,
+				0, 0, 150,
+				ledcolors, ledbytes,
+				middle - i);
+
+		setColor(htim, Channel,
+				0, 0, 150,
+				ledcolors, ledbytes,
+				middle + i + 1);
+
+		HAL_Delay(40);
+	}
+}
+
+
