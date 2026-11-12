@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "FreeRTOS.h"
+#include "cmsis_os2.h"
 #include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -64,6 +66,34 @@ DMA_HandleTypeDef hdma_tim2_ch1;
 
 SRAM_HandleTypeDef hsram1;
 
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for dataTask */
+osThreadId_t dataTaskHandle;
+const osThreadAttr_t dataTask_attributes = {
+  .name = "dataTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for shiftTask */
+osThreadId_t shiftTaskHandle;
+const osThreadAttr_t shiftTask_attributes = {
+  .name = "shiftTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for displayTask */
+osThreadId_t displayTaskHandle;
+const osThreadAttr_t displayTask_attributes = {
+  .name = "displayTask",
+  .stack_size = 1024 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -80,6 +110,11 @@ static void MX_DMA2D_Init(void);
 static void MX_FDCAN2_Init(void);
 static void MX_TIM15_Init(void);
 static void MX_IWDG1_Init(void);
+void StartDefaultTask(void *argument);
+void StartdataTask(void *argument);
+void StartshiftTask(void *argument);
+void StartdisplayTask(void *argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -146,8 +181,6 @@ uint32_t id;
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
 
   if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
-
-
     HAL_FDCAN_GetRxMessage(&hfdcan2, FDCAN_RX_FIFO0, &rxHeader, rxData);
 
     id = rxHeader.Identifier;
@@ -220,7 +253,6 @@ int main(void)
   MX_TIM2_Init();
   MX_FMC_Init();
   MX_DMA2D_Init();
-  MX_USB_DEVICE_Init();
   MX_FDCAN2_Init();
   MX_TIM15_Init();
   MX_IWDG1_Init();
@@ -239,6 +271,51 @@ int main(void)
 
   HAL_SetFMCMemorySwappingConfig(FMC_SWAPBMAP_SDRAM_SRAM);
   /* USER CODE END 2 */
+
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* creation of dataTask */
+  dataTaskHandle = osThreadNew(StartdataTask, NULL, &dataTask_attributes);
+
+  /* creation of shiftTask */
+  shiftTaskHandle = osThreadNew(StartshiftTask, NULL, &shiftTask_attributes);
+
+  /* creation of displayTask */
+  displayTaskHandle = osThreadNew(StartdisplayTask, NULL, &displayTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -614,7 +691,7 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA1_Stream0_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
 
 }
@@ -752,13 +829,13 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(SDMMC1_MH_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(PAD__EXTI_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(PAD__EXTI_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(PAD__EXTI_IRQn);
 
-  HAL_NVIC_SetPriority(PAD_A2_EXTI_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(PAD_A2_EXTI_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(PAD_A2_EXTI_IRQn);
 
-  HAL_NVIC_SetPriority(BTN1_EXTI_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(BTN1_EXTI_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(BTN1_EXTI_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -769,6 +846,80 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* init code for USB_DEVICE */
+  MX_USB_DEVICE_Init();
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartdataTask */
+/**
+* @brief Function implementing the dataTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartdataTask */
+void StartdataTask(void *argument)
+{
+  /* USER CODE BEGIN StartdataTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartdataTask */
+}
+
+/* USER CODE BEGIN Header_StartshiftTask */
+/**
+* @brief Function implementing the shiftTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartshiftTask */
+void StartshiftTask(void *argument)
+{
+  /* USER CODE BEGIN StartshiftTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartshiftTask */
+}
+
+/* USER CODE BEGIN Header_StartdisplayTask */
+/**
+* @brief Function implementing the displayTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartdisplayTask */
+void StartdisplayTask(void *argument)
+{
+  /* USER CODE BEGIN StartdisplayTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartdisplayTask */
+}
 
  /* MPU Configuration */
 
@@ -803,6 +954,28 @@ void MPU_Config(void)
   /* Enables the MPU */
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM3 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM3)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
 }
 
 /**
