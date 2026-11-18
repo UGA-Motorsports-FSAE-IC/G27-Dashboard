@@ -116,18 +116,17 @@ void processCAN(int id, uint8_t *data) {
         	setairtankdata(airtank);
         	break;
         }
-        /*
         case BSPDCANID: {
         	uint16_t value = ((uint16_t)data[5] << 8) + data[4];
-        	if (value < 1800) {
+        	if (value < 2000) {
         		setColor(&htim2, TIM_CHANNEL_1, 0, 0, 0, ledcolors, ledbytes, 0);
         		setColor(&htim2, TIM_CHANNEL_1, 0, 0, 0, ledcolors, ledbytes, 1);
         	} else {
-        		setColor(&htim2, TIM_CHANNEL_1, 150, 255, 0, ledcolors, ledbytes, 0);
-        		setColor(&htim2, TIM_CHANNEL_1, 255, 150, 0, ledcolors, ledbytes, 1);
+        		setColor(&htim2, TIM_CHANNEL_1, 0, 255, 0, ledcolors, ledbytes, 0);
+        		setColor(&htim2, TIM_CHANNEL_1, 0, 255, 0, ledcolors, ledbytes, 1);
         	}
+            break;
         }
-        */
 
         case OILPRESSURECANID: {
 			uint16_t oilpressureval = ((uint16_t)data[4] << 8) + data[5];
