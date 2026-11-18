@@ -40,6 +40,14 @@ add_subdirectory(cmake/stm32cubemx)
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
+    Core/Src/lvgl
+)
+
+
+set(LVGL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/lvgl)
+
+file(GLOB_RECURSE LVGL_SOURCES CONFIGURE_DEPENDS
+    ${LVGL_DIR}/src/*.c
 )
 
 # Add sources to executable
@@ -51,17 +59,22 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/fmc-display/rpiSceneBuilderUser.cpp
     Core/Src/fmc-display/rpiDisplaySceneBuilder.cpp
     Core/Src/fmc-display/rpiDisplayShapes.c
+    ${LVGL_SOURCES}
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     Core/Inc
+    ${LVGL_DIR}
+    ${LVGL_DIR}/src
+    Middlewares/LVGL
 )
 
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined symbols
+    LV_CONF_INCLUDE_SIMPLE
 )
 
 # Remove wrong libob.a library dependency when using cpp files

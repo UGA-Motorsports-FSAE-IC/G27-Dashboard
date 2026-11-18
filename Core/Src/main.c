@@ -18,6 +18,10 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "include/lvgl/core/lv_init.h"
+#include "include/lvgl/display/lv_display.h"
+#include "include/lvgl/tick/lv_tick.h"
+#include "stm32h7xx_hal.h"
 #include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -33,6 +37,7 @@
 #include "data.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "lvgl.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -251,6 +256,11 @@ int main(void)
 
   lcdInit();
 
+  lv_init();
+  lv_tick_set_cb(HAL_GetTick());
+
+  lv_display_t * display = lv_display_create(SCREEN_WIDTH, SCREEN_HEIGHT);
+
   MX_IWDG1_Init();
 
   while (1) {
@@ -286,6 +296,7 @@ int main(void)
 	  if (HAL_GetTick() - lastDraw >= 50) {
 	      lastDraw = HAL_GetTick();
 	      domainscreen();
+        lv_timer_handler();
 	  }
 
 	  if (resetFlag) {
