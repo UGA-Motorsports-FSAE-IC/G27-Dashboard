@@ -33,6 +33,12 @@ int main(void)
 
     lv_unlock();
 
+    lv_subject_t *rpm = lv_xml_get_subject(NULL, "rpm");
+    lv_subject_set_int(rpm, 3200);
+
+    lv_subject_t *gear = lv_xml_get_subject(NULL, "gear");
+    lv_subject_copy_string(gear, "5");
+
     while(1) {
         uint32_t idle_ms = lv_timer_handler();
         if(idle_ms == LV_NO_TIMER_READY) idle_ms = LV_DEF_REFR_PERIOD;

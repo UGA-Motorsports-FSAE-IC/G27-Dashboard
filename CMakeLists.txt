@@ -68,6 +68,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Inc
     ${LVGL_DIR}
     ${LVGL_DIR}/src
+    ${LVGL_DIR}/include
     Middlewares/LVGL
 )
 

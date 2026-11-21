@@ -14,9 +14,31 @@ font is referenced by name, e.g. `style_text_font="title_large"`.
 ```xml
 <!-- in globals.xml -->
 <fonts>
-  <bin name="title_large" src_path="fonts/Montserrat-Medium.ttf"
-       size="32" bpp="4" as_file="false"/>
-  <tiny_ttf name="body" src_path="fonts/Montserrat-Regular.ttf" size="18"/>
+  <bin
+    name="title_large"
+    src_path="fonts/Montserrat-Medium.ttf"
+    size="32"
+    bpp="4"
+    as_file="false"
+  />
+  <tiny_ttf
+    name="body_sm"
+    src_path="fonts/Montserrat-Regular.ttf"
+    size="14"
+    as_file="true"
+  />
+  <tiny_ttf
+    name="body"
+    src_path="fonts/Montserrat-Regular.ttf"
+    size="18"
+    as_file="true"
+  />
+  <tiny_ttf
+    name="body_lg"
+    src_path="fonts/Montserrat-Regular.ttf"
+    size="24"
+    as_file="true"
+  />
 </fonts>
 ```
 

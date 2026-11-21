@@ -117,8 +117,9 @@ void processCAN(int id, uint8_t *data) {
         	break;
         }
         case BSPDCANID: {
-        	uint16_t value = ((uint16_t)data[5] << 8) + data[4];
-        	if (value < 2000) {
+        	uint16_t bspdvalue = ((uint16_t)data[5] << 8) + data[4];
+            uint8_t pmbvalue = data[0];
+        	if (value < 2000 || data[0] == 0) {
         		setColor(&htim2, TIM_CHANNEL_1, 0, 0, 0, ledcolors, ledbytes, 0);
         		setColor(&htim2, TIM_CHANNEL_1, 0, 0, 0, ledcolors, ledbytes, 1);
         	} else {
