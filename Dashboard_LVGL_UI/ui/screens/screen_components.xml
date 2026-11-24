@@ -1,4 +1,4 @@
-<screen permanent="true">
+<screen>
 	<view extends="lv_obj">
 		<style name="style_screen_light" />
 		<style name="style_screen_dark" enabled="{subject_theme_dark == 1}" />

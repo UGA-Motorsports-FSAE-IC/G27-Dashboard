@@ -1,56 +1,33 @@
-/* shiftLights.c
+/* data.c
  *
  *  Created on: May 5, 2026
  *      Author: ____Ryan____ Main
+ *
+ *  Decodes CAN frames and pushes the values to:
+ *    - the shift lights / warning LEDs
+ *    - the LVGL dashboard (screen1) through its subjects
+ *
+ *  Subjects are defined in Dashboard_LVGL_UI/ui/globals.xml and
+ *  declared in ui_gen.h. Setting a subject automatically updates every
+ *  widget bound to it, and LVGL redraws on the next displayTask().
  */
 
 #include "data.h"
-#include "rpiSceneBuilderUser.h"
 #include "shiftLights.h"
-#include "lcd_io.h"
-#include <string.h>
+#include "ui.h"          /* LVGL Editor UI: subject_rpm, subject_gear, ... */
 #include <stdio.h>
-#include <stdlib.h>
 
 extern uint8_t ledcolors[];
 extern uint32_t ledbytes[];
 extern TIM_HandleTypeDef htim2;
 int G1[12] = {500, 3000, 4000, 5000, 6000, 7000, 8000, 8500, 9000, 9500, 10000, 10200};
-char rpm[20] = "null";
-char temp[20] = "null";
-char gear[20] = "8";
-char batt[20] = "null";
-char speed[20] = "null";
-char airtank[20] = "null";
-char sparkcut[20] = "ON";
-char oilpressure[20] = "null";
-char shiftcount[20] = "null";
-char ws[50] = "null";
 
 uint16_t rpmVal;
 
-extern FDCAN_HandleTypeDef hfdcan2;
-
-volatile uint32_t uniqueId = 1;
-uint16_t framesSent = 0;
-extern volatile uint8_t shiftPending;
-extern volatile uint32_t lastSendMs;
-extern uint8_t shiftCommand;
-
-void lcdInit() {
-    resetScreen();
-    initializeScreen();
-    settempdata(temp);
-    setgeardata(gear);
-    setrpmdata(rpm);
-    setbattdata(batt);
-    setspeeddata(speed);
-    setairtankdata(airtank);
-    //setshiftcountdata(shiftcount);
-    setoilpressuredata(oilpressure);
-    setwheelspeeddata(ws);
-    domainscreen();
-}
+/* Wheel speeds (FL FR RL RR). No widget on screen1 shows these yet;
+ * add a string subject + bind_text in the Editor (e.g. an AUX slot)
+ * and set it with lv_subject_set_string() below. */
+static char ws[32] = "null";
 
 void processCAN(int id, uint8_t *data) {
 
@@ -58,24 +35,22 @@ void processCAN(int id, uint8_t *data) {
         case RPMCANID: {
             rpmVal = ((uint16_t)data[6] << 8) + data[7];
             UpdateShiftLights(&htim2, TIM_CHANNEL_1, ledcolors, ledbytes, rpmVal, G1);
-            itoa(rpmVal, rpm, 10);
-            setrpmdata(rpm);
+            lv_subject_snprintf(subject_rpm, "%u", rpmVal);
+            lv_subject_set_int(subject_rpm_value, rpmVal);   /* RPM bar */
             break;
         }
 
         case SPEEDCANID: {
             uint16_t speedVal = ((uint16_t)data[0] << 8) | data[1];
             speedVal /= 10;
-            itoa(speedVal, speed, 10);
-            setspeeddata(speed);
+            lv_subject_snprintf(subject_speed, "%u", speedVal);
             break;
         }
 
         case GEARCANID: {
             uint16_t gearVal = ((uint16_t)data[3] << 8) | data[2];
             int gearNum = calculateGear(gearVal);
-            itoa(gearNum, gear, 10);
-            setgeardata(gear);
+            lv_subject_snprintf(subject_gear, "%d", gearNum);
             break;
         }
 
@@ -87,24 +62,14 @@ void processCAN(int id, uint8_t *data) {
             } else {
             	setColor(&htim2, TIM_CHANNEL_1, 0, 0, 0, ledcolors, ledbytes, 15);
             }
-            itoa(tempVal, temp, 10);
-            settempdata(temp);
+            lv_subject_snprintf(subject_coolant, "%u", tempVal);
             break;
         }
 
         case BATTERYCANID: {
             uint16_t battvalue = ((uint16_t)data[2] << 8) + data[3];
-            uint16_t batIntPart = battvalue / 10;
-            uint16_t batDecimalPart = battvalue % 10;
-            char batint[10];
-            char batdec[10];
-            itoa(batIntPart, batint, 10);
-            itoa(batDecimalPart, batdec, 10);
-            strncpy(batt, "", 20);
-            strncat(batt, batint, 5);
-            strncat(batt, ".", 5);
-            strncat(batt, batdec, 1);
-            setbattdata(batt);
+            /* value is in tenths of a volt -> "13.8" */
+            lv_subject_snprintf(subject_battery, "%u.%u", battvalue / 10, battvalue % 10);
             break;
         }
 
@@ -112,14 +77,14 @@ void processCAN(int id, uint8_t *data) {
         	uint16_t adc = ((uint16_t)data[5] << 8) + data[4];
         	float volts = adc * (5.0f / 4096.0f);
         	float airtankval = (volts * 1250.0f) - 625.0f;
-        	itoa(airtankval, airtank, 10);
-        	setairtankdata(airtank);
+        	lv_subject_snprintf(subject_air_tank, "%d", (int)airtankval);
         	break;
         }
+
         case BSPDCANID: {
         	uint16_t bspdvalue = ((uint16_t)data[5] << 8) + data[4];
             uint8_t pmbvalue = data[0];
-        	if (value < 2000 || data[0] == 0) {
+        	if (bspdvalue < 2000 || pmbvalue == 0) {
         		setColor(&htim2, TIM_CHANNEL_1, 0, 0, 0, ledcolors, ledbytes, 0);
         		setColor(&htim2, TIM_CHANNEL_1, 0, 0, 0, ledcolors, ledbytes, 1);
         	} else {
@@ -132,24 +97,12 @@ void processCAN(int id, uint8_t *data) {
         case OILPRESSURECANID: {
 			uint16_t oilpressureval = ((uint16_t)data[4] << 8) + data[5];
 			oilpressureval /= 10;
-			itoa(oilpressureval, oilpressure, 10);
-			setoilpressuredata(oilpressure);
+			lv_subject_snprintf(subject_oil_press, "%u", oilpressureval);
 			break;
 		}
 
         case WSCANID: {
         	snprintf(ws, sizeof(ws), "%u %u %u %u", data[0], data[2], data[4], data[6]);
-        	/*
-        	char wsint[10];
-        	char wsdec[10];
-        	itoa(data[2], wsint, 10);
-			itoa(data[3], wsdec, 10);
-			strncpy(ws, "", 20);
-			strncat(ws, wsint, 5);
-			strncat(ws, ".", 5);
-			strncat(ws, wsdec, 2);
-			*/
-        	setwheelspeeddata(ws);
         	break;
         }
     }
@@ -174,30 +127,3 @@ int calculateGear(uint16_t gv) {
 		return 8;
 	}
 }
-
-void shiftTask(void)
-{
-    if (!shiftPending) {
-        return;
-    }
-
-	FDCAN_TxHeaderTypeDef txShiftHeader;
-	uint8_t txData[8] = {0};
-	txData[1] = uniqueId;
-	txData[0] = shiftCommand;
-
-	txShiftHeader.Identifier = 10;
-	txShiftHeader.IdType = FDCAN_EXTENDED_ID;
-	txShiftHeader.TxFrameType = FDCAN_DATA_FRAME;
-	txShiftHeader.DataLength = FDCAN_DLC_BYTES_8;
-	txShiftHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-	txShiftHeader.BitRateSwitch = FDCAN_BRS_OFF;
-	txShiftHeader.FDFormat = FDCAN_CLASSIC_CAN;
-	txShiftHeader.MessageMarker = 0;
-
-	if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &txShiftHeader, txData) == HAL_OK) {
-		lastSendMs = HAL_GetTick();
-		framesSent++;
-    }
-}
-

@@ -4,5 +4,6 @@
   "files.associations": {
     "*.h": "c"
   },
-  "debug.onTaskErrors": "abort"
+  "debug.onTaskErrors": "abort",
+  "cmake.generator": "Ninja"
 }

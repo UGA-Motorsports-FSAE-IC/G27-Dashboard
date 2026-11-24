@@ -23,14 +23,10 @@
 #define WSCANID 190
 
 
-void lcdInit();
-
-void updateMainData();
+void updateMainData(void);
 
 void processCAN(int id, uint8_t *data);
 
 int calculateGear(uint16_t gv);
-
-void shiftTask(void);
 
 #endif

@@ -10,7 +10,7 @@
 #include <cstring>
 
 
-uint16_t framebuffer[FRAMEBUFFER_SIZE] __attribute__((section("screenbuffer")));;
+uint16_t framebuffer[FRAMEBUFFER_SIZE] __attribute__((section(".screenbuffer"), aligned(32)));
 
 /*
  * the following are Scene method definitions

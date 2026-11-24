@@ -108,23 +108,32 @@
 			bpp="4"
 			as_file="false"
 		/>
-		<tiny_ttf
+		<bin
 			name="body_sm"
 			src_path="fonts/Montserrat-Regular.ttf"
 			size="14"
-			as_file="true"
+			bpp="4"
+			range="0x20-0x7F"
+			symbols="°"
+			as_file="false"
 		/>
-		<tiny_ttf
+		<bin
 			name="body"
 			src_path="fonts/Montserrat-Regular.ttf"
 			size="18"
-			as_file="true"
+			bpp="4"
+			range="0x20-0x7F"
+			symbols="°"
+			as_file="false"
 		/>
-		<tiny_ttf
+		<bin
 			name="body_lg"
 			src_path="fonts/Montserrat-Regular.ttf"
 			size="24"
-			as_file="true"
+			bpp="4"
+			range="0x20-0x7F"
+			symbols="°"
+			as_file="false"
 		/>
 		<bin
 			name="font_body"
@@ -204,13 +213,14 @@
 			value="0"
 			help="Wether to show a keyboard "
 		/>
-		<string name="rpm" value="null" />
-		<string name="speed" value="null" />
-		<string name="gear" value="?" />
-		<string name="coolant" value="null" />
-		<string name="oil_press" value="null" />
-		<string name="battery" value="null" />
-		<string name="air_tank" value="null" />
+		<int name="subject_rpm_value" value="0" min_value="0" max_value="10500" help="Engine RPM as a number (drives the RPM bar)" />
+		<string name="subject_rpm" value="null" />
+		<string name="subject_speed" value="null" />
+		<string name="subject_gear" value="?" />
+		<string name="subject_coolant" value="null" />
+		<string name="subject_oil_press" value="null" />
+		<string name="subject_battery" value="null" />
+		<string name="subject_air_tank" value="null" />
 	</subjects>
 
 	<images>

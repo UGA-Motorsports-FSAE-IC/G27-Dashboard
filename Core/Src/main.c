@@ -18,10 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "include/lvgl/core/lv_init.h"
-#include "include/lvgl/display/lv_display.h"
-#include "include/lvgl/tick/lv_tick.h"
-#include "lvgl/core/lv_area.h"
 #include "stm32h7xx_hal.h"
 #include "usb_device.h"
 
@@ -38,7 +34,7 @@
 #include "data.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "lvgl.h"
+#include "display.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -161,7 +157,6 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
   }
 }
 
-uint32_t lastDraw = 0;
 
 void updateMainData(void) {
   processCAN(id, rxData);
@@ -175,15 +170,6 @@ int checkShift() {
 		return 0;
 	}
 	return 1;
-}
-
-void my_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map) {
-  int w = lv_area_get_width(area);
-  int h = lv_area_get_height(area);
-
-  modifySpace(area->x1, area->y1, area->x2, area->y2);
-  commandAndData(0x2C, (uint16_t *)px_map, w * h);
-  lv_display_flush_ready(disp);
 }
 
 /* USER CODE END 0 */
@@ -264,14 +250,8 @@ int main(void)
 
   HAL_TIM_Base_Start_IT(&htim15);
 
-  lcdInit();
-
-  lv_init();
-  lv_tick_set_cb(HAL_GetTick());
-
-  lv_display_t * display = lv_display_create(SCREEN_WIDTH, SCREEN_HEIGHT);
-  lv_display_set_buffers(display, framebuffer, NULL, FRAMEBUFFER_SIZE, LV_DISPLAY_RENDER_MODE_DIRECT);
-  lv_display_set_flush_cb(display, my_flush_cb);
+  /* LCD + LVGL + Editor UI (screen1). See Core/Src/display.c */
+  displayInit();
 
   MX_IWDG1_Init();
 
@@ -305,11 +285,8 @@ int main(void)
 		  dataRecieved = 0;
 	  }
 
-	  if (HAL_GetTick() - lastDraw >= 50) {
-	      lastDraw = HAL_GetTick();
-	      domainscreen();
-        lv_timer_handler();
-	  }
+	  /* LVGL redraws only what changed, at most every LV_DEF_REFR_PERIOD ms */
+	  displayTask();
 
 	  if (resetFlag) {
 		  NVIC_SystemReset();
